@@ -1,5 +1,11 @@
 group = "app.revanced"
 
+kotlin {
+    compilerOptions {
+        freeCompilerArgs = listOf("-Xcontext-receivers")
+    }
+}
+
 patches {
     about {
         name = "GameHub Patches"

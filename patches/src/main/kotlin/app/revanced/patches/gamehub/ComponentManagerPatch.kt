@@ -56,7 +56,7 @@ val componentManagerResourcePatch = resourcePatch(
 ) {
     compatibleWith("com.xiaoji.egggame"("5.3.5"))
 
-    apply {
+    execute {
         // 1. Rename "My" tab → "My Games"
         document("res/values/strings.xml").use { xml ->
             val nodes = xml.getElementsByTagName("string")
@@ -135,7 +135,7 @@ val componentManagerPatch = bytecodePatch(
 
     extendWith("extensions/extension.rve")
 
-    apply {
+    execute {
         // ── 1. u1(): append Components item to menu list before return-void ──────
         val u1Method = menuListBuilderFingerprint.method
         val u1ReturnIndex = u1Method.implementation!!.instructions
