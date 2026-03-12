@@ -1,8 +1,6 @@
 package app.revanced.patches.gamehub
 
 import app.revanced.patcher.extensions.InstructionExtensions.addInstructions
-import app.revanced.patcher.extensions.InstructionExtensions.indexOfFirstInstruction
-import app.revanced.patcher.extensions.InstructionExtensions.indexOfLastInstruction
 import app.revanced.patcher.patch.bytecodePatch
 import app.revanced.patcher.patch.resourcePatch
 import app.revanced.patcher.fingerprint
@@ -24,7 +22,7 @@ private val menuListBuilderFingerprint = fingerprint {
 
 /**
  * Matches HomeLeftMenuDialog.o1() — static click handler.
- * Signature: (HomeLeftMenuDialog, HomeLeftMenuDialog$MenuItem, FragmentActivity) -> Unit
+ * Signature: (HomeLeftMenuDialog, HomeLeftMenuDialog$MenuItem, FragmentActivity) -> void
  * p0=dialog, p1=MenuItem, p2=activity; ID obtained via p1.a() then moved into p0.
  */
 private val menuClickHandlerFingerprint = fingerprint {
@@ -58,22 +56,21 @@ val componentManagerResourcePatch = resourcePatch(
 ) {
     compatibleWith("com.xiaoji.egggame"("5.3.5"))
 
-    execute { context ->
+    apply {
         // 1. Rename "My" tab → "My Games"
-        context["res/values/strings.xml"].also { xml ->
-            xml.getElementsByTagName("string").let { nodes ->
-                for (i in 0 until nodes.length) {
-                    val el = nodes.item(i) as? Element ?: continue
-                    if (el.getAttribute("name") == "llauncher_main_page_title_my") {
-                        el.textContent = "My Games"
-                        break
-                    }
+        document("res/values/strings.xml").use { xml ->
+            val nodes = xml.getElementsByTagName("string")
+            for (i in 0 until nodes.length) {
+                val el = nodes.item(i) as? Element ?: continue
+                if (el.getAttribute("name") == "llauncher_main_page_title_my") {
+                    el.textContent = "My Games"
+                    break
                 }
             }
         }
 
         // 2. Add iv_bci_launcher ID
-        context["res/values/ids.xml"].also { xml ->
+        document("res/values/ids.xml").use { xml ->
             val resources = xml.documentElement
             val item = xml.createElement("item")
             item.setAttribute("type", "id")
@@ -82,7 +79,7 @@ val componentManagerResourcePatch = resourcePatch(
         }
 
         // 3. Insert BCI launcher ImageView after iv_search in the toolbar LinearLayout
-        context["res/layout/llauncher_activity_new_launcher_main.xml"].also { xml ->
+        document("res/layout/llauncher_activity_new_launcher_main.xml").use { xml ->
             val allElements = xml.getElementsByTagName("*")
             for (i in 0 until allElements.length) {
                 val el = allElements.item(i) as? Element ?: continue
@@ -105,8 +102,8 @@ val componentManagerResourcePatch = resourcePatch(
         }
 
         // 4. Register ComponentManagerActivity in the manifest
-        context["AndroidManifest.xml"].also { xml ->
-            val application = xml.getElementsByTagName("application").item(0) as? Element ?: return@also
+        document("AndroidManifest.xml").use { xml ->
+            val application = xml.getElementsByTagName("application").item(0) as? Element ?: return@use
             val activity = xml.createElement("activity")
             activity.setAttribute(
                 "android:name",
@@ -138,44 +135,37 @@ val componentManagerPatch = bytecodePatch(
 
     extendWith("extensions/extension.rve")
 
-    execute {
+    apply {
         // ── 1. u1(): append Components item to menu list before return-void ──────
-        menuListBuilderFingerprint.method.apply {
-            val returnIndex = indexOfLastInstruction(Opcode.RETURN_VOID)
-            addInstructions(
-                returnIndex,
-                """
-                    invoke-static { p0 }, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->addComponentsMenuItem(Ljava/util/List;)V
-                """.trimIndent(),
-            )
-        }
+        val u1Method = menuListBuilderFingerprint.method
+        val u1ReturnIndex = u1Method.implementation!!.instructions
+            .indexOfLast { it.opcode == Opcode.RETURN_VOID }
+        u1Method.addInstructions(
+            u1ReturnIndex,
+            "invoke-static { p0 }, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->addComponentsMenuItem(Ljava/util/List;)V",
+        )
 
         // ── 2. o1(): intercept ID=9 click at the start of the method ──────────
-        // Signature: (HomeLeftMenuDialog, MenuItem, FragmentActivity) -> Unit
+        // Signature: (HomeLeftMenuDialog, MenuItem, FragmentActivity) -> void
         // p0=dialog, p1=MenuItem, p2=activity; .locals 2 (v0, v1 available)
-        menuClickHandlerFingerprint.method.apply {
-            addInstructions(
-                0,
-                """
-                    invoke-static { p0, p1, p2 }, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->handleMenuItemClick(Ljava/lang/Object;Ljava/lang/Object;Landroid/app/Activity;)Z
-                    move-result v0
-                    if-eqz v0, :cond_bh_not_handled
-                    sget-object v0, Lkotlin/Unit;->INSTANCE:Lkotlin/Unit;
-                    return-object v0
-                    :cond_bh_not_handled nop
-                """.trimIndent(),
-            )
-        }
+        menuClickHandlerFingerprint.method.addInstructions(
+            0,
+            """
+                invoke-static { p0, p1, p2 }, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->handleMenuItemClick(Ljava/lang/Object;Ljava/lang/Object;Landroid/app/Activity;)Z
+                move-result v0
+                if-eqz v0, :cond_bh_not_handled
+                return-void
+                :cond_bh_not_handled nop
+            """.trimIndent(),
+        )
 
         // ── 3. initView(): wire up BCI button before return-void ─────────────
-        launcherInitViewFingerprint.method.apply {
-            val returnIndex = indexOfLastInstruction(Opcode.RETURN_VOID)
-            addInstructions(
-                returnIndex,
-                """
-                    invoke-static { p0 }, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->setupBciButton(Landroid/app/Activity;)V
-                """.trimIndent(),
-            )
-        }
+        val initViewMethod = launcherInitViewFingerprint.method
+        val initViewReturnIndex = initViewMethod.implementation!!.instructions
+            .indexOfLast { it.opcode == Opcode.RETURN_VOID }
+        initViewMethod.addInstructions(
+            initViewReturnIndex,
+            "invoke-static { p0 }, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->setupBciButton(Landroid/app/Activity;)V",
+        )
     }
 }
