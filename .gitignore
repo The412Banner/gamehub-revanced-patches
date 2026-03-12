@@ -1,0 +1,14 @@
+.gradle
+**/build/
+!src/**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+*.apk
+.vscode/
+node_modules/
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
