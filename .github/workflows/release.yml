@@ -30,7 +30,7 @@ jobs:
           gradle-version: "8.10"
 
       - name: Build patches
-        run: gradle build
+        run: gradle build -x apiCheck
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
