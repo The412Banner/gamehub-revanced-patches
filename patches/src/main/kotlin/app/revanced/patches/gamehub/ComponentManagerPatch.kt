@@ -54,7 +54,16 @@ val componentManagerResourcePatch = resourcePatch(
     name = "Component manager resources",
     description = "Adds resource IDs, strings and layout changes required by the Component Manager patch.",
 ) {
-    compatibleWith("com.xiaoji.egggame"("5.3.5"))
+    compatibleWith(
+        "com.xiaoji.egggame"("5.3.5"),
+        "gamehub.lite"("5.3.5"),
+        "com.tencent.ig"("5.3.5"),
+        "com.antutu.ABenchMark"("5.3.5"),
+        "com.antutu.benchmark.full"("5.3.5"),
+        "com.ludashi.aibench"("5.3.5"),
+        "com.ludashi.benchmark"("5.3.5"),
+        "com.mihoyo.genshinimpact"("5.3.5"),
+    )
 
     execute {
         // 1. Rename "My" tab → "My Games"
@@ -129,7 +138,16 @@ val componentManagerPatch = bytecodePatch(
     name = "Component manager",
     description = "Adds a Component Manager to the GameHub sidebar and a BCI launcher button to the toolbar.",
 ) {
-    compatibleWith("com.xiaoji.egggame"("5.3.5"))
+    compatibleWith(
+        "com.xiaoji.egggame"("5.3.5"),
+        "gamehub.lite"("5.3.5"),
+        "com.tencent.ig"("5.3.5"),
+        "com.antutu.ABenchMark"("5.3.5"),
+        "com.antutu.benchmark.full"("5.3.5"),
+        "com.ludashi.aibench"("5.3.5"),
+        "com.ludashi.benchmark"("5.3.5"),
+        "com.mihoyo.genshinimpact"("5.3.5"),
+    )
 
     dependsOn(componentManagerResourcePatch)
 

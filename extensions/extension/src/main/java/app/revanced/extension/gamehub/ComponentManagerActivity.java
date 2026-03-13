@@ -1,18 +1,18 @@
 package app.revanced.extension.gamehub;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.OpenableColumns;
 import android.util.Log;
-import android.view.View;
-import android.widget.AdapterView;
+import android.view.Gravity;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -30,13 +30,15 @@ import java.util.List;
 /**
  * Component Manager Activity — injected into GameHub's dex via ReVanced extension.
  *
- * <p>Provides a simple ListView UI to:
- * <ul>
- *   <li>Browse installed components under {@code getFilesDir()/usr/home/components/}</li>
- *   <li>Inject a WCP/ZIP file via SAF (replaces the component folder)</li>
- *   <li>Backup a component folder to {@code Downloads/BannerHub/{name}/}</li>
- * </ul>
- * </p>
+ * <p>Two-level ListView UI:
+ * <ol>
+ *   <li>Component list — shows all subdirs of {@code getFilesDir()/usr/home/components/}.
+ *       Appends {@code [-> filename]} for any component that has been previously injected.</li>
+ *   <li>Options menu (per component) — Inject file / Backup / Back</li>
+ * </ol>
+ *
+ * <p>Injected filenames are persisted in SharedPreferences ({@code "bh_injected"}) so the
+ * label survives app restarts.</p>
  *
  * <p>Must be registered in AndroidManifest.xml (done by the resource patch).</p>
  */
@@ -45,90 +47,80 @@ public class ComponentManagerActivity extends Activity {
 
     private static final String TAG = "BannerHub";
     private static final int REQUEST_CODE_PICK_WCP = 1001;
+    private static final String PREFS_INJECTED = "bh_injected";
 
     private File componentsDir;
-    private List<String> componentNames = new ArrayList<>();
-    private ArrayAdapter<String> adapter;
+    private SharedPreferences injectedPrefs;
     private String selectedComponent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         componentsDir = new File(getFilesDir(), "usr/home/components");
-
-        // Build UI programmatically (no layout XML needed)
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(32, 32, 32, 32);
-
-        TextView title = new TextView(this);
-        title.setText("Component Manager");
-        title.setTextSize(20f);
-        title.setPadding(0, 0, 0, 24);
-        root.addView(title);
-
-        ListView listView = new ListView(this);
-        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, componentNames);
-        listView.setAdapter(adapter);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
-        root.addView(listView, lp);
-
-        // Action buttons
-        Button btnInject = new Button(this);
-        btnInject.setText("Inject WCP/ZIP");
-        root.addView(btnInject);
-
-        Button btnBackup = new Button(this);
-        btnBackup.setText("Backup Selected");
-        root.addView(btnBackup);
-
-        Button btnRefresh = new Button(this);
-        btnRefresh.setText("Refresh");
-        root.addView(btnRefresh);
-
-        setContentView(root);
-
-        // Listeners
-        listView.setOnItemClickListener((parent, view, position, id) -> {
-            selectedComponent = componentNames.get(position);
-            Toast.makeText(this, "Selected: " + selectedComponent, Toast.LENGTH_SHORT).show();
-        });
-
-        btnInject.setOnClickListener(v -> {
-            if (selectedComponent == null) {
-                Toast.makeText(this, "Select a component first", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            openFilePicker();
-        });
-
-        btnBackup.setOnClickListener(v -> {
-            if (selectedComponent == null) {
-                Toast.makeText(this, "Select a component first", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            backupComponent(selectedComponent);
-        });
-
-        btnRefresh.setOnClickListener(v -> refreshComponents());
-
-        refreshComponents();
+        injectedPrefs = getSharedPreferences(PREFS_INJECTED, MODE_PRIVATE);
+        showComponents();
     }
 
-    private void refreshComponents() {
-        componentNames.clear();
+    // ── Screen: component list ────────────────────────────────────────────────
+
+    private void showComponents() {
+        List<String> rows = new ArrayList<>();
         if (componentsDir.isDirectory()) {
             File[] dirs = componentsDir.listFiles(File::isDirectory);
             if (dirs != null) {
                 Arrays.sort(dirs);
-                for (File d : dirs) componentNames.add(d.getName());
+                for (File d : dirs) {
+                    String name = d.getName();
+                    String injected = injectedPrefs.getString(name, null);
+                    rows.add(injected != null ? name + " [-> " + injected + "]" : name);
+                }
             }
         }
-        if (componentNames.isEmpty()) componentNames.add("(no components found)");
-        adapter.notifyDataSetChanged();
+        if (rows.isEmpty()) rows.add("(no components found)");
+
+        LinearLayout root = buildRoot();
+        ListView listView = buildList(root, rows);
+        setContentView(root);
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            String raw = rows.get(position);
+            if (raw.equals("(no components found)")) return;
+            // Strip "[-> filename]" suffix to recover the bare component name
+            int bracket = raw.indexOf(" [-> ");
+            selectedComponent = bracket >= 0 ? raw.substring(0, bracket) : raw;
+            showOptions();
+        });
     }
+
+    // ── Screen: per-component options ─────────────────────────────────────────
+
+    private void showOptions() {
+        List<String> options = new ArrayList<>();
+        options.add("Inject file");
+        options.add("Backup");
+        options.add("Back");
+
+        LinearLayout root = buildRoot();
+
+        TextView subtitle = new TextView(this);
+        subtitle.setText(selectedComponent);
+        subtitle.setTextSize(14f);
+        subtitle.setPadding(0, 0, 0, 24);
+        root.addView(subtitle);
+
+        ListView listView = buildList(root, options);
+        setContentView(root);
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            switch (position) {
+                case 0: openFilePicker(); break;
+                case 1: backupComponent(selectedComponent); break;
+                case 2: showComponents(); break;
+            }
+        });
+    }
+
+    // ── File injection ─────────────────────────────────────────────────────────
 
     private void openFilePicker() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -145,15 +137,19 @@ public class ComponentManagerActivity extends Activity {
 
         Uri uri = data.getData();
         File destDir = new File(componentsDir, selectedComponent);
+        final String componentName = selectedComponent;
 
-        // Run extraction on background thread
         Handler uiHandler = new Handler(Looper.getMainLooper());
         new Thread(() -> {
             try {
                 WcpExtractor.extract(getContentResolver(), uri, destDir);
+                String filename = getFileName(uri);
+                if (filename != null) {
+                    injectedPrefs.edit().putString(componentName, filename).apply();
+                }
                 uiHandler.post(() -> {
                     Toast.makeText(this, "Injected successfully", Toast.LENGTH_SHORT).show();
-                    refreshComponents();
+                    showComponents();
                 });
             } catch (Throwable t) {
                 Log.e(TAG, "Extraction failed", t);
@@ -163,6 +159,20 @@ public class ComponentManagerActivity extends Activity {
             }
         }).start();
     }
+
+    private String getFileName(Uri uri) {
+        try (Cursor cursor = getContentResolver().query(
+                uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                return cursor.getString(0);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "getFileName failed", e);
+        }
+        return null;
+    }
+
+    // ── Backup ────────────────────────────────────────────────────────────────
 
     private void backupComponent(String name) {
         File src = new File(componentsDir, name);
@@ -208,5 +218,34 @@ public class ComponentManagerActivity extends Activity {
                 }
             }
         }
+    }
+
+    // ── UI helpers ────────────────────────────────────────────────────────────
+
+    /** Returns a root LinearLayout with the "Banners Component Injector" title pre-added. */
+    private LinearLayout buildRoot() {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(48, 48, 48, 48);
+
+        TextView title = new TextView(this);
+        title.setText("Banners Component Injector");
+        title.setTextSize(20f);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, 24);
+        root.addView(title);
+
+        return root;
+    }
+
+    /** Adds a full-height ListView backed by {@code items} to {@code root} and returns it. */
+    private ListView buildList(LinearLayout root, List<String> items) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this, android.R.layout.simple_list_item_1, items);
+        ListView listView = new ListView(this);
+        listView.setAdapter(adapter);
+        root.addView(listView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        return listView;
     }
 }
