@@ -1,5 +1,41 @@
 # gamehub-revanced-patches Progress Log
 
+## [feat] — v2.1.0-pre — RTS touch controls patch (2026-03-14)
+**Commit:** `pending` | **Tag:** none (pre-release pending)
+
+### What changed
+- **New patch: `RtsTouchControlsPatch.kt`** — injects RTS toggle switch + gear button into `SidebarControlsFragment.j0()` and creates `RtsTouchOverlayView` in `WineActivity`
+- **New extension: `RtsTouchOverlayView.java`** — gesture overlay; single-finger drag/tap, two-finger pan/pinch, double-tap; maps touches to WinUIBridge mouse/key events via reflection
+- **New extension: `RtsOverlaySetup.java`** — static entry points `setupSidebarRts()` / `setupRtsOverlay()` / `toggleRtsOverlay()`; uses WeakReference holders to avoid adding fields to host classes
+- **New extension: `RtsSettings.java`** — MMKV wrapper via reflection on `InputControlsManager`; all RTS prefs (enable, per-gesture enable/action)
+- **New extension: `RtsGestureConfigDialog.java`** — per-gesture config dialog; 6 checkboxes + action spinners; 3-option action picker sub-dialog
+- **New resources** — `rts_gesture_config_dialog.xml`, `rts_action_picker_dialog.xml`, `rts_dialog_background.xml`
+
+### Files touched
+- `patches/src/main/kotlin/app/revanced/patches/gamehub/RtsTouchControlsPatch.kt` (new)
+- `extensions/extension/src/main/java/app/revanced/extension/gamehub/RtsTouchOverlayView.java` (new)
+- `extensions/extension/src/main/java/app/revanced/extension/gamehub/RtsOverlaySetup.java` (new)
+- `extensions/extension/src/main/java/app/revanced/extension/gamehub/RtsSettings.java` (new)
+- `extensions/extension/src/main/java/app/revanced/extension/gamehub/RtsGestureConfigDialog.java` (new)
+- `patches/src/main/resources/rts/res/layout/rts_gesture_config_dialog.xml` (new)
+- `patches/src/main/resources/rts/res/layout/rts_action_picker_dialog.xml` (new)
+- `patches/src/main/resources/rts/res/drawable/rts_dialog_background.xml` (new)
+
+---
+
+## [fix] — v2.0.1-pre — CodeRabbit review fixes for Component Manager (2026-03-14)
+**Commit:** `121a2fc` | **Tag:** none (pre-release pending)
+
+### What changed
+- **`WcpExtractor.java`** — atomic extraction, decompression bomb guard, path traversal guard
+- **`ComponentManagerActivity.java`** — ZIP backup, stale file deletion, activity state persistence
+
+### Files touched
+- `extensions/extension/src/main/java/app/revanced/extension/gamehub/WcpExtractor.java`
+- `extensions/extension/src/main/java/app/revanced/extension/gamehub/ComponentManagerActivity.java`
+
+---
+
 ## v2.0.0 — feat: sync ComponentManagerActivity + expand compatibleWith (2026-03-13)
 **Commit:** `3de8fdc` | **Tag:** `v2.0.0`
 

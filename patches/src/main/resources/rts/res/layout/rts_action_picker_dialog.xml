@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#80000000">
+    <LinearLayout
+        android:id="@+id/layout_dialog"
+        android:orientation="vertical"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/rts_dialog_background"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+        <LinearLayout android:id="@+id/rts_action_option_0" android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical" android:clickable="true" android:focusable="true" android:paddingStart="16dp" android:paddingEnd="16dp">
+            <TextView android:id="@+id/rts_action_option_0_text" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textSize="14sp" android:textColor="@android:color/white" />
+            <ImageView android:id="@+id/rts_action_option_0_check" android:layout_width="24dp" android:layout_height="24dp" android:src="@android:drawable/checkbox_on_background" android:visibility="gone" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/rts_action_option_1" android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical" android:clickable="true" android:focusable="true" android:paddingStart="16dp" android:paddingEnd="16dp">
+            <TextView android:id="@+id/rts_action_option_1_text" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textSize="14sp" android:textColor="@android:color/white" />
+            <ImageView android:id="@+id/rts_action_option_1_check" android:layout_width="24dp" android:layout_height="24dp" android:src="@android:drawable/checkbox_on_background" android:visibility="gone" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/rts_action_option_2" android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical" android:clickable="true" android:focusable="true" android:paddingStart="16dp" android:paddingEnd="16dp">
+            <TextView android:id="@+id/rts_action_option_2_text" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textSize="14sp" android:textColor="@android:color/white" />
+            <ImageView android:id="@+id/rts_action_option_2_check" android:layout_width="24dp" android:layout_height="24dp" android:src="@android:drawable/checkbox_on_background" android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
