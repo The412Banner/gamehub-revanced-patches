@@ -6,7 +6,6 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
@@ -21,11 +20,13 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Component Manager Activity — injected into GameHub's dex via ReVanced extension.
@@ -58,7 +59,22 @@ public class ComponentManagerActivity extends Activity {
         super.onCreate(savedInstanceState);
         componentsDir = new File(getFilesDir(), "usr/home/components");
         injectedPrefs = getSharedPreferences(PREFS_INJECTED, MODE_PRIVATE);
-        showComponents();
+        if (savedInstanceState != null) {
+            selectedComponent = savedInstanceState.getString("selected_component");
+        }
+        if (selectedComponent != null) {
+            showOptions();
+        } else {
+            showComponents();
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (selectedComponent != null) {
+            outState.putString("selected_component", selectedComponent);
+        }
     }
 
     // ── Screen: component list ────────────────────────────────────────────────
@@ -181,17 +197,29 @@ public class ComponentManagerActivity extends Activity {
             return;
         }
 
-        File backupRoot = new File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "BannerHub/" + name);
-        backupRoot.mkdirs();
+        File backupDir = getExternalFilesDir(null);
+        if (backupDir == null) {
+            Toast.makeText(this, "External storage not available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        File bannerHubDir = new File(backupDir, "BannerHub");
+        bannerHubDir.mkdirs();
+        File zipFile = new File(bannerHubDir, name + ".zip");
 
         Handler uiHandler = new Handler(Looper.getMainLooper());
         new Thread(() -> {
             try {
-                copyDir(src, backupRoot);
+                // Delete existing zip to ensure clean overwrite
+                if (zipFile.exists()) {
+                    zipFile.delete();
+                }
+                byte[] buf = new byte[8192];
+                try (FileOutputStream fos = new FileOutputStream(zipFile);
+                     ZipOutputStream zos = new ZipOutputStream(fos)) {
+                    zipDir(src, buf, zos);
+                }
                 uiHandler.post(() ->
-                        Toast.makeText(this, "Backed up to Downloads/BannerHub/" + name,
+                        Toast.makeText(this, "Backed up to Android/data/.../files/BannerHub/" + name + ".zip",
                                 Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
                 Log.e(TAG, "Backup failed", e);
@@ -202,20 +230,27 @@ public class ComponentManagerActivity extends Activity {
         }).start();
     }
 
-    private static void copyDir(File src, File dst) throws Exception {
-        dst.mkdirs();
+    /**
+     * Recursively adds all files from {@code src} into {@code zos} with flat entry names
+     * (basename only, no subdirectory prefix). This matches the flat extraction in
+     * {@link WcpExtractor}'s ZIP path.
+     */
+    private static void zipDir(File src, byte[] buf, ZipOutputStream zos) throws IOException {
         File[] files = src.listFiles();
         if (files == null) return;
-        byte[] buf = new byte[8192];
         for (File f : files) {
             if (f.isDirectory()) {
-                copyDir(f, new File(dst, f.getName()));
+                zipDir(f, buf, zos);
             } else {
-                try (InputStream in = new FileInputStream(f);
-                     OutputStream out = new FileOutputStream(new File(dst, f.getName()))) {
+                ZipEntry entry = new ZipEntry(f.getName());
+                zos.putNextEntry(entry);
+                try (InputStream in = new FileInputStream(f)) {
                     int n;
-                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    while ((n = in.read(buf)) > 0) {
+                        zos.write(buf, 0, n);
+                    }
                 }
+                zos.closeEntry();
             }
         }
     }
