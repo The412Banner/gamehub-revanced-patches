@@ -216,7 +216,7 @@ public class ComponentManagerActivity extends Activity {
                 byte[] buf = new byte[8192];
                 try (FileOutputStream fos = new FileOutputStream(zipFile);
                      ZipOutputStream zos = new ZipOutputStream(fos)) {
-                    zipDir(src, buf, zos);
+                    zipDir(src, "", buf, zos);
                 }
                 uiHandler.post(() ->
                         Toast.makeText(this, "Backed up to Android/data/.../files/BannerHub/" + name + ".zip",
@@ -231,18 +231,19 @@ public class ComponentManagerActivity extends Activity {
     }
 
     /**
-     * Recursively adds all files from {@code src} into {@code zos} with flat entry names
-     * (basename only, no subdirectory prefix). This matches the flat extraction in
-     * {@link WcpExtractor}'s ZIP path.
+     * Recursively adds all files from {@code src} into {@code zos} preserving relative paths.
+     * {@code prefix} is the path prefix for entries in this directory (empty string for root).
      */
-    private static void zipDir(File src, byte[] buf, ZipOutputStream zos) throws IOException {
+    private static void zipDir(File src, String prefix, byte[] buf, ZipOutputStream zos)
+            throws IOException {
         File[] files = src.listFiles();
         if (files == null) return;
         for (File f : files) {
+            String entryName = prefix.isEmpty() ? f.getName() : prefix + "/" + f.getName();
             if (f.isDirectory()) {
-                zipDir(f, buf, zos);
+                zipDir(f, entryName, buf, zos);
             } else {
-                ZipEntry entry = new ZipEntry(f.getName());
+                ZipEntry entry = new ZipEntry(entryName);
                 zos.putNextEntry(entry);
                 try (InputStream in = new FileInputStream(f)) {
                     int n;

@@ -140,7 +140,7 @@ public final class WcpExtractor {
         return (InputStream) ctor.newInstance(in, -1); // -1 = unlimited memory
     }
 
-    // ── ZIP extraction (flat — basename only) ─────────────────────────────────
+    // ── ZIP extraction ────────────────────────────────────────────────────────
 
     private static void extractZip(InputStream in, File destDir) throws IOException {
         byte[] buf = new byte[BUF];
@@ -148,13 +148,19 @@ public final class WcpExtractor {
         ZipInputStream zip = new ZipInputStream(in);
         ZipEntry entry;
         while ((entry = zip.getNextEntry()) != null) {
-            if (entry.isDirectory()) {
+            String name = entry.getName();
+            if (name.contains("..")) {
                 zip.closeEntry();
                 continue;
             }
-            // Flatten to basename
-            String name = new File(entry.getName()).getName();
+            if (entry.isDirectory()) {
+                new File(destDir, name).mkdirs();
+                zip.closeEntry();
+                continue;
+            }
             File out = new File(destDir, name);
+            File parent = out.getParentFile();
+            if (parent != null) parent.mkdirs();
             try (FileOutputStream fos = new FileOutputStream(out)) {
                 pipe(zip, fos, buf, total);
             }
