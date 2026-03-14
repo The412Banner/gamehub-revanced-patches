@@ -1,7 +1,7 @@
 # gamehub-revanced-patches Progress Log
 
 ## [feat] — v2.1.0-pre — RTS touch controls patch (2026-03-14)
-**Commit:** `pending` | **Tag:** none (pre-release pending)
+**Commit:** `2b008ad` | **Tag:** none (pre-release pending)
 
 ### What changed
 - **New patch: `RtsTouchControlsPatch.kt`** — injects RTS toggle switch + gear button into `SidebarControlsFragment.j0()` and creates `RtsTouchOverlayView` in `WineActivity`
