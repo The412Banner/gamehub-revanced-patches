@@ -54,3 +54,6 @@ java -jar revanced-cli.jar patch \
 - Built and tested against GameHub 5.3.5 ReVanced Normal (`com.xiaoji.egggame`)
 - Uses GameHub's own bundled libraries (commons-compress, zstd-jni, tukaani xz) via reflection — no external dex injection needed
 - `TarArchiveInputStream.getNextTarEntry()` is called as `s()` (R8-obfuscated name verified from decompiled APK)
+
+---
+<sub>☕ [Support on Ko-fi](https://ko-fi.com/the412banner)</sub>
